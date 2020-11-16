@@ -2,3 +2,7 @@ body {
   font-family: 'Open Sans', sans-serif;
 }
 
+tr {
+  border: 1px solid green;
+}
+
