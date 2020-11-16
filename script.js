@@ -6,11 +6,13 @@ var openWeatherKey = "151b4f3c3ea2c7894242b9a6df78cdf5"
 // Browser UI stuff goes below here //
 //////////////////////////////////////
 
-var jSomeElement                = null;
+var jSearchAustonButton             = null;
+var jDropZone                       = null;
 
 function grabPageElements()
 {
-  jSomeElement = $("#some-element");
+  jSearchAustonButton = $("#search-austin")
+  jDropZone          = $("#drop-zone")
 }
 
 function browserMain()
