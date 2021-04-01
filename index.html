@@ -23,10 +23,26 @@
   </head>
 
   <body>
-    ...
-    <button id="search-austin">Search Austin</button>
+    Your OpenWeather APIKEY: <br/>
+    <input type="text" id="apikey-input-text" style="min-width: 400px" value="your weather APIkey"/>
+    <br/>
+    <div style="color:red;" id="error-text"></div><br/>
+    <br/>
+    Enter city name and press enter to search it
+    <input type="text" id="city-input-text" style="min-width: 400px" value=""/>
+    <br/>
+    or select city from previously searched cities
+    <select id="search-selector">
+      <option value="Seattle">Seattle</option>
+    </select>
+        
+    <hr/>
+    OpenWeather data:
+    
     <div id="drop-zone"></div>
+
     <script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-    <script src="./script.js"></script>
+    <script src="./env_agnostic.js"></script>
+    <script src="./browser_script.js"></script>
   </body>
 </html>
