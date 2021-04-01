@@ -12,7 +12,7 @@ const openWeatherForecastBaseUrl = "http://api.openweathermap.org/data/2.5/forec
 
 const jqInputText = $("#apikey-input-text");
 const jqError = $("#error-text");
-const jqDevDropZone = $("#dev-drop-zone");
+//const jqDevDropZone = $("#dev-drop-zone");
 const jqPrettyDropZone = $("#pretty-drop-zone");
 const jqSearchSelector = $("#search-selector");
 const jqCitySearchText = $("#city-input-text");
@@ -394,15 +394,15 @@ function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
   console.log("rsd2p:", currentAndFutureCityWeatherData);
   try {
     const stringifiedJsonCityWeatherData = JSON.stringify(currentAndFutureCityWeatherData);
-    const t = createTableFromObject(currentAndFutureCityWeatherData);
+    //const t = createTableFromObject(currentAndFutureCityWeatherData);
     const prettyPage = createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeatherData);
 
     jqPrettyDropZone.html("");
     jqPrettyDropZone.append(prettyPage);
 
 
-    jqDevDropZone.html(""); // clear it
-    jqDevDropZone.append(t);
+    //jqDevDropZone.html(""); // clear it
+    //jqDevDropZone.append(t);
   }
   catch (err) {
     // if my result came back successful, I will trust the apikey enough to
