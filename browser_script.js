@@ -372,8 +372,18 @@ function createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeather
   humidityRow.append($("<td>").text("Humidity"));
   humidityRow.append($("<td>").text(currentHumidity));
 
+  const windSpeedRow = $("<tr>");
+  windSpeedRow.append($("<td>").text("Wind Speed"));
+  windSpeedRow.append($("<td>").text(currentWindSpeed));
 
-  retTable.append(nameRow, dateRow, iconRow, uvRow, temperatureRow, humidityRow);
+  retTable.append(
+    nameRow,
+    dateRow,
+    iconRow,
+    uvRow,
+    temperatureRow,
+    humidityRow,
+    windSpeedRow);
 
   return retTable;
 }
