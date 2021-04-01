@@ -3,13 +3,17 @@
 
 // I really need to not store this in the clear
 //let openWeatherKey = "151b4f3c3ea2c7894242b9a6df78cdf5"
+const devMode = true;
 let openWeatherKey = "";
+let latestSuccess = "";
 const openWeatherBaseUrl = "http://api.openweathermap.org/data/2.5/weather/";
+const openWeatherForecastBaseUrl = "http://api.openweathermap.org/data/2.5/forecast/";
 
 
 const jqInputText = $("#apikey-input-text");
 const jqError = $("#error-text");
-const jqDropZone = $("#drop-zone");
+const jqDevDropZone = $("#dev-drop-zone");
+const jqPrettyDropZone = $("#pretty-drop-zone");
 const jqSearchSelector = $("#search-selector");
 const jqCitySearchText = $("#city-input-text");
 
@@ -30,6 +34,9 @@ function persistKey() {
 }
 
 function persistSearchHistory() {
+
+  localStorage.setItem("latestSuccess", latestSuccess);
+
   const citySearchHistoryArray = Array.from(citySearchHistory);
 
   const stringifiedCitySearchHistoryArray = JSON.stringify(citySearchHistoryArray);
@@ -38,6 +45,10 @@ function persistSearchHistory() {
 }
 
 function loadPageHistory() {
+  latestSuccess = localStorage.getItem("latestSuccess");
+
+
+
   const citySearchHistoryString = localStorage.getItem("searchHistory");
 
   let citySearchHistoryArray = [];
@@ -54,9 +65,9 @@ function ensureCityIsInSearchHistory(city) {
   citySearchHistory.add(city);
   const numCitiesInHistoryAfterAdd = citySearchHistory.size;
   // only add it if it isn't already there
-  if(numCitiesInHistory !== numCitiesInHistoryAfterAdd) {
+  if (numCitiesInHistory !== numCitiesInHistoryAfterAdd) {
     addCityToDropdown(city);
-  }  
+  }
 }
 
 function rebuildDropdown() {
@@ -73,13 +84,26 @@ function addCityToDropdown(city) {
 }
 
 // on Page Load
-$(() => {
+$(async () => {
 
   loadApikey();
-
   loadPageHistory();
-
   rebuildDropdown();
+
+  if (devMode) {
+    const currentAndFuture = {
+      current: exampleCurrentResponse,
+      future: exampleForecast
+    }
+    renderSearchDataToPage(exampleCurrentResponse.name, currentAndFuture);
+    return;
+  }
+  // load latestSuccess !!!!
+  console.log("latestSuccess:" + latestSuccess);
+  if (latestSuccess) {
+    const pageData = await loadPageDataForCity(latestSuccess);
+    renderSearchDataToPage(latestSuccess, pageData)
+  }
 
   jqInputText.on('change', function (e) {
     console.log("on change");
@@ -88,7 +112,44 @@ $(() => {
   });
 });
 
-var exampleResponse = {
+const exampleForecast = { 
+  coord: {
+  lon: -93.5005,
+   lat: 42.0003
+  },
+  weather: [{ "id": 800, "main": "Clear", "description": "clear sky", "icon": "01n" }],
+  base: "stations",
+  main: {
+    temp: 268.32,
+    feels_like: 265.81,
+    temp_min: 268.15, 
+    temp_max: 268.71,
+    pressure: 1033,
+    humidity: 63
+  },
+  visibility: 10000,
+  wind: {
+    speed: 1.54,
+    deg: 330
+  },
+  clouds: {
+    all: 1
+  },
+  dt: 1617261356,
+  sys: {
+    type: 1,
+    id: 3289,
+    country: "US",
+    sunrise: 1617278162,
+    sunset: 1617323949
+  },
+  timezone: -18000,
+  id: 4862182,
+  name: "Iowa",
+  cod: 200
+}
+
+const exampleCurrentResponse = {
   coord: {
     lon: -97.74,
     lat: 30.27
@@ -151,9 +212,22 @@ function kelvinToFahrenheit(k) {
   return celsius * 9 / 5 + 32;
 }
 
-function getWeatherData(location) {
+
+// TODO include forecast AND current !!!!
+function getCurrentWeatherData(location) {
 
   var url = makeWeatherApiUrl({ q: location }, openWeatherBaseUrl, openWeatherKey);
+  //var url = makeWeatherApiUrl({ q: location }, openWeatherForecastBaseUrl, openWeatherKey);
+
+  console.log(`get weather using url: ${url}`);
+
+  return $.get(url);
+}
+
+function getForecastWeatherData(location) {
+
+  //var url = makeWeatherApiUrl({ q: location }, openWeatherBaseUrl, openWeatherKey);
+  var url = makeWeatherApiUrl({ q: location }, openWeatherForecastBaseUrl, openWeatherKey);
 
   console.log(`get weather using url: ${url}`);
 
@@ -161,8 +235,10 @@ function getWeatherData(location) {
 }
 
 // Browser non-ui stuff goes here
-function ajaxWeather(city) {
-  return getWeatherData(city);
+async function ajaxWeather(city) {
+  const current = await getCurrentWeatherData(city);
+  const forecast = await getForecastWeatherData(city);
+  return { current: current, forecast: forecast }
 }
 
 function createTableFromObject(obj) {
@@ -191,25 +267,18 @@ function createTableFromObject(obj) {
 }
 
 function getCurrentlySelectedCity() {
-  const searchText =  jqCitySearchText.val();
+  const searchText = jqCitySearchText.val();
   console.log(`search text = ${searchText}`);
   return searchText || "Austin";
 }
 
-async function doSearchCityInResponseToClick(city) {
+async function loadPageDataForCity(city) {
+  let cityWeatherData = "";
   try {
-    const cityWeatherData = await ajaxWeather(city);
+    cityWeatherData = await ajaxWeather(city);
 
     console.log("server responded with: ", cityWeatherData);
-
-    const stringifiedJsonCityWeatherData = JSON.stringify(cityWeatherData);
-    const t = createTableFromObject(cityWeatherData);
-
-    jqDropZone.html(""); // clear it
-    //clearDropzone();
-    jqDropZone.append(t);
-  }
-  catch (err) {
+  } catch (err) {
     // if my result came back successful, I will trust the apikey enough to
     // store it for use next time in localstorage.  Otherwise, I get here 
     // and will just log the failure
@@ -227,7 +296,84 @@ async function doSearchCityInResponseToClick(city) {
     ) {
       jqError.text("Invalid API key.");
     }
-    if((err.status == 404)
+    if ((err.status == 404)
+      && err.responseJSON
+      && err.responseJSON.message
+      && err.responseJSON.message.startsWith("city not found")
+    ) {
+      jqError.text("That city wasn't found.");
+    }
+
+    console.error("server cried:", err)
+    return;
+  } // end catch
+
+  console.log(`It worked, saving city ${city} to search history`);
+  latestSuccess = city;
+  ensureCityIsInSearchHistory(city);
+  persistSearchHistory();
+  console.log(`It worked, setting localstorage apikey to ${openWeatherKey}`);
+  persistKey();
+
+  return cityWeatherData;
+}
+
+function createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeatherData) {
+
+  const current = currentAndFutureCityWeatherData.current;
+  const future = currentAndFutureCityWeatherData.future;
+
+  // pull and convert the data I want to put in the table:
+  const dateString    = moment.unix(current.dt).format("MM/DD/YYYY");
+  const cityName      = current.name;
+  
+  // now for the table:
+  const retDiv = $("<table>");
+  const nameRow = $("<tr>")
+  nameRow.append($("<td>").text("city name"));
+  nameRow.append($("<td>").text(cityName));
+  const dateRow = $("<tr>");
+  dateRow.append($("<td>").text("date"));
+  dateRow.append($("<td>").text(dateString));
+
+  retDiv.append(nameRow, dateRow);
+
+  //retDiv.html("you get what you get");
+
+  return retDiv;
+}
+
+function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
+
+  console.log("renderSearchDataToPage:", city);
+  console.log("rsd2p:", currentAndFutureCityWeatherData);
+  try {
+    const stringifiedJsonCityWeatherData = JSON.stringify(currentAndFutureCityWeatherData);
+    const t = createTableFromObject(currentAndFutureCityWeatherData);
+    const prettyPage = createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeatherData);
+
+    jqPrettyDropZone.html("");
+    jqPrettyDropZone.append(prettyPage);
+
+
+    jqDevDropZone.html(""); // clear it
+    jqDevDropZone.append(t);
+  }
+  catch (err) {
+    // if my result came back successful, I will trust the apikey enough to
+    // store it for use next time in localstorage.  Otherwise, I get here 
+    // and will just log the failure and return
+
+    console.error("network error: ", err);
+    const responseJSON = err.responseJSON;
+    if ((err.status == 401)
+      && err.responseJSON
+      && err.responseJSON.message
+      && err.responseJSON.message.startsWith("Invalid API key.")
+    ) {
+      jqError.text("Invalid API key.");
+    }
+    if ((err.status == 404)
       && err.responseJSON
       && err.responseJSON.message
       && err.responseJSON.message.startsWith("city not found")
@@ -240,27 +386,25 @@ async function doSearchCityInResponseToClick(city) {
     return;
   } // end catch
 
-  console.log(`It worked, saving city ${city} to search history`);
-  ensureCityIsInSearchHistory(city);
-  persistSearchHistory();
-  console.log(`It worked, setting localstorage apikey to ${openWeatherKey}`);
-  persistKey();
+  return;
 }
 
 function registerEvents() {
   // text area
-  jqCitySearchText.on("change", async function(e){
+  jqCitySearchText.on("change", async function (e) {
     const city = getCurrentlySelectedCity();
-    doSearchCityInResponseToClick(city);
+    const loadedData = await loadPageDataForCity(city);
+    renderSearchDataToPage(city, loadedData);
   });
 
   // dropdown
-  jqSearchSelector.on("change", async function(e){
+  jqSearchSelector.on("change", async function (e) {
     const changedVal = jqSearchSelector.val();
     console.log(`changedVal: ${changedVal}`);
     //const city = getCurrentlySelectedCityFromDropDown();
     // we know it's a good value because we added it already and we only add cities that check out.
-    doSearchCityInResponseToClick(changedVal);
+    const loadedData = await loadPageDataForCity(changedVal);
+    renderSearchDataToPage(changedVal, loadedData);
   });
 }
 
