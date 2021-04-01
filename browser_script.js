@@ -213,13 +213,10 @@ function kelvinToFahrenheit(k) {
   return celsius * 9 / 5 + 32;
 }
 
-
-// TODO include forecast AND current !!!!
 async function getCurrentWeatherData(location) {
 
-  var url = makeWeatherApiUrl({ q: location }, openWeatherBaseUrl, openWeatherKey);
-  //var url = makeWeatherApiUrl({ q: location }, openWeatherForecastBaseUrl, openWeatherKey);
-
+  var url = makeWeatherApiUrl({ q: location, units: "imperial" }, openWeatherBaseUrl, openWeatherKey);
+  
   console.log(`get weather using url: ${url}`);
 
   const current = await $.get(url);
@@ -237,7 +234,7 @@ async function getCurrentWeatherData(location) {
 
 function getForecastWeatherData(location) {
 
-  var url = makeWeatherApiUrl({ q: location }, openWeatherForecastBaseUrl, openWeatherKey);
+  var url = makeWeatherApiUrl({ q: location, units: "imperial" }, openWeatherForecastBaseUrl, openWeatherKey);
 
   console.log(`get weather using url: ${url}`);
 
@@ -281,7 +278,7 @@ function getCurrentlySelectedCity() {
 }
 
 async function loadPageDataForCity(city) {
-  let cityWeatherData = "";
+  let cityWeatherData = null;
   try {
     cityWeatherData = await ajaxWeather(city);
 
@@ -291,8 +288,8 @@ async function loadPageDataForCity(city) {
     // store it for use next time in localstorage.  Otherwise, I get here 
     // and will just log the failure
 
-    console.error("network error: ", err);
-    const responseJSON = err.responseJSON;
+    console.log("network error: ", err);
+
     if ((err.status == 401)
       && err.responseJSON
       && err.responseJSON.message
@@ -305,11 +302,12 @@ async function loadPageDataForCity(city) {
       && err.responseJSON.message
       && err.responseJSON.message.startsWith("city not found")
     ) {
-      jqError.text("That city wasn't found.");
+      jqError.text(`The city '${city}' wasn't found.`);
     }
 
-    console.error("server cried:", err)
-    return;
+    console.log("server cried:", err)
+
+    throw err;
   } // end catch
 
   console.log(`It worked, saving city ${city} to search history`);
@@ -342,7 +340,7 @@ function createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeather
 
   const iconCode = current.weather[0].icon;
   const iconUrl = "http://openweathermap.org/img/wn/" + iconCode + ".png";
-      
+
   // now for the table:
   const retTable = $("<table>");
   const nameRow = $("<tr>")
@@ -365,7 +363,17 @@ function createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeather
   const uvIndexTd = $("<td>").text(currentUvIndex).attr("style", `color:${uvHtmlColor}`)
   uvRow.append(uvIndexTd);
 
-  retTable.append(nameRow, dateRow, iconRow, uvRow);
+  const temperatureRow = $("<tr>");
+  temperatureRow.append($("<td>").text("Temp"));
+  temperatureRow.append($("<td>").text(currentTemp + "F"));
+
+  // currentHumidity
+  const humidityRow = $("<tr>");
+  humidityRow.append($("<td>").text("Humidity"));
+  humidityRow.append($("<td>").text(currentHumidity));
+
+
+  retTable.append(nameRow, dateRow, iconRow, uvRow, temperatureRow, humidityRow);
 
   return retTable;
 }
@@ -377,7 +385,6 @@ function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
   try {
     const stringifiedJsonCityWeatherData = JSON.stringify(currentAndFutureCityWeatherData);
     const t = createTableFromObject(currentAndFutureCityWeatherData);
-    //const t = $("<div>");
     const prettyPage = createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeatherData);
 
     jqPrettyDropZone.html("");
@@ -393,7 +400,7 @@ function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
     // and will just log the failure and return
 
     console.error("network error: ", err);
-    const responseJSON = err.responseJSON;
+    
     if ((err.status == 401)
       && err.responseJSON
       && err.responseJSON.message
@@ -406,7 +413,7 @@ function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
       && err.responseJSON.message
       && err.responseJSON.message.startsWith("city not found")
     ) {
-      jqError.text("That city wasn't found.");
+      jqError.text(`The city '${city}' wasn't found.`);
     }
 
 
@@ -420,9 +427,13 @@ function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
 function registerEvents() {
   // text area
   jqCitySearchText.on("change", async function (e) {
+    try {
     const city = getCurrentlySelectedCity();
     const loadedData = await loadPageDataForCity(city);
     renderSearchDataToPage(city, loadedData);
+    } catch (e) {
+      console.log("search text change event caught:", e);
+    }
   });
 
   // dropdown
