@@ -50,15 +50,13 @@ function loadPageHistory() {
 }
 
 function ensureCityIsInSearchHistory(city) {
-  // !!!! add it as an option in the dropdown
-  const citiesInHistory = citySearchHistory.length;
+  const numCitiesInHistory = citySearchHistory.size;
   citySearchHistory.add(city);
-  const citiesInHistoryAfterAdd = citySearchHistory.length;
+  const numCitiesInHistoryAfterAdd = citySearchHistory.size;
   // only add it if it isn't already there
-  if(citiesInHistory !== citiesInHistoryAfterAdd) {
+  if(numCitiesInHistory !== numCitiesInHistoryAfterAdd) {
     addCityToDropdown(city);
-  }
-  
+  }  
 }
 
 function rebuildDropdown() {
@@ -207,7 +205,6 @@ async function doSearchCityInResponseToClick(city) {
     const stringifiedJsonCityWeatherData = JSON.stringify(cityWeatherData);
     const t = createTableFromObject(cityWeatherData);
 
-    console.log("I want to clear it");
     jqDropZone.html(""); // clear it
     //clearDropzone();
     jqDropZone.append(t);
