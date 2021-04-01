@@ -1,11 +1,11 @@
 "use strict"
 
-
-// I really need to not store this in the clear
-//let openWeatherKey = "151b4f3c3ea2c7894242b9a6df78cdf5"
-const devMode = true;
+const devMode = false;
+//const devMode = true;
 let openWeatherKey = "";
 let latestSuccess = "";
+
+const openWeatherUviBaseUrl = "http://api.openweathermap.org/data/2.5/uvi"
 const openWeatherBaseUrl = "http://api.openweathermap.org/data/2.5/weather/";
 const openWeatherForecastBaseUrl = "http://api.openweathermap.org/data/2.5/forecast/";
 
@@ -184,7 +184,8 @@ const exampleCurrentResponse = {
   timezone: -21600,
   id: 4671654,
   name: "Austin",
-  cod: 200
+  cod: 200,
+  uv: 4.35
 };
 
 function getQueryize(obj) {
@@ -214,19 +215,28 @@ function kelvinToFahrenheit(k) {
 
 
 // TODO include forecast AND current !!!!
-function getCurrentWeatherData(location) {
+async function getCurrentWeatherData(location) {
 
   var url = makeWeatherApiUrl({ q: location }, openWeatherBaseUrl, openWeatherKey);
   //var url = makeWeatherApiUrl({ q: location }, openWeatherForecastBaseUrl, openWeatherKey);
 
   console.log(`get weather using url: ${url}`);
 
-  return $.get(url);
+  const current = await $.get(url);
+  const lat = current.coord.lat;
+  const lon = current.coord.lon;
+
+  var uvUrl = makeWeatherApiUrl({ lat: lat, lon: lon }, openWeatherUviBaseUrl, openWeatherKey);
+
+  const uv = await $.get(uvUrl);
+
+  current.uv = uv.value;
+
+  return current;
 }
 
 function getForecastWeatherData(location) {
 
-  //var url = makeWeatherApiUrl({ q: location }, openWeatherBaseUrl, openWeatherKey);
   var url = makeWeatherApiUrl({ q: location }, openWeatherForecastBaseUrl, openWeatherKey);
 
   console.log(`get weather using url: ${url}`);
@@ -234,7 +244,6 @@ function getForecastWeatherData(location) {
   return $.get(url);
 }
 
-// Browser non-ui stuff goes here
 async function ajaxWeather(city) {
   const current = await getCurrentWeatherData(city);
   const forecast = await getForecastWeatherData(city);
@@ -249,8 +258,7 @@ function createTableFromObject(obj) {
   for (let i = 0; i < keys.length; ++i) {
     const key = keys[i];
     let val = obj[key];
-    //console.log("typeof(val) = " + typeof(val));
-
+    
     if (Array.isArray(val)) {
       if (val.length !== 1) {
         console.log("holy smacks, an array is the data is not of size 1");
@@ -282,10 +290,6 @@ async function loadPageDataForCity(city) {
     // if my result came back successful, I will trust the apikey enough to
     // store it for use next time in localstorage.  Otherwise, I get here 
     // and will just log the failure
-
-    // TODO use a set.  Preserving order is unimportant
-    // but avoiding duplication is
-    //citySearchHistory.push(city);
 
     console.error("network error: ", err);
     const responseJSON = err.responseJSON;
@@ -326,9 +330,21 @@ function createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeather
   // pull and convert the data I want to put in the table:
   const dateString    = moment.unix(current.dt).format("MM/DD/YYYY");
   const cityName      = current.name;
-  
+
+  const currentMainWeather = current.weather.main;
+  const currentTemp = current.main.temp;
+  const currentHumidity = current.main.humidity;
+  const currentWindSpeed = current.wind.speed;
+  const currentUvIndex = current.uv;
+  const uvScaledTo255 = Math.floor(currentUvIndex * 255.0/7.0); // 7 is considered very high
+  const uvRgb = uvScaledTo255.toString(16);
+  const uvHtmlColor = `#${uvRgb}0000`;
+
+  const iconCode = current.weather[0].icon;
+  const iconUrl = "http://openweathermap.org/img/wn/" + iconCode + ".png";
+      
   // now for the table:
-  const retDiv = $("<table>");
+  const retTable = $("<table>");
   const nameRow = $("<tr>")
   nameRow.append($("<td>").text("city name"));
   nameRow.append($("<td>").text(cityName));
@@ -336,11 +352,22 @@ function createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeather
   dateRow.append($("<td>").text("date"));
   dateRow.append($("<td>").text(dateString));
 
-  retDiv.append(nameRow, dateRow);
+  const iconRow = $("<tr>");
+  iconRow.append($("<td>").text("icon"));
+  const iconImg = $("<img>").attr("src", iconUrl);
+  const tdForIcon = $("<td>");
+  tdForIcon.append(iconImg);
+  iconRow.append(tdForIcon);
 
-  //retDiv.html("you get what you get");
+  const uvRow = $("<tr>");
+  uvRow.append($("<td>").text("UV"));
 
-  return retDiv;
+  const uvIndexTd = $("<td>").text(currentUvIndex).attr("style", `color:${uvHtmlColor}`)
+  uvRow.append(uvIndexTd);
+
+  retTable.append(nameRow, dateRow, iconRow, uvRow);
+
+  return retTable;
 }
 
 function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
@@ -350,6 +377,7 @@ function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
   try {
     const stringifiedJsonCityWeatherData = JSON.stringify(currentAndFutureCityWeatherData);
     const t = createTableFromObject(currentAndFutureCityWeatherData);
+    //const t = $("<div>");
     const prettyPage = createJQueryPageDataFromOpenweatherResponse(currentAndFutureCityWeatherData);
 
     jqPrettyDropZone.html("");
