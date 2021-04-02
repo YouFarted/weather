@@ -1,7 +1,7 @@
 "use strict"
 
-const devMode = false;
-//const devMode = true;
+const devMode_cachedData = false;
+//const devMode_cachedData = true;
 let openWeatherKey = "";
 let latestSuccess = "";
 
@@ -11,9 +11,10 @@ const openWeatherForecastBaseUrl = "http://api.openweathermap.org/data/2.5/forec
 
 
 const jqInputText = $("#apikey-input-text");
+const jqCurentTime = $("#current-time");
 const jqError = $("#error-text");
-const jqDevDropZone = $("#dev-drop-zone");
 const jqPrettyDropZone = $("#pretty-drop-zone");
+const jqCityNameDropZone = $("#city-name");
 const jqNowDropZone = $("#now-drop-zone");
 const jqForecastDropZone = $("#forecast-drop-zone");
 const jqSearchSelector = $("#search-selector");
@@ -92,15 +93,15 @@ $(async () => {
   loadPageHistory();
   rebuildDropdown();
 
-  if (devMode) {
+  if (devMode_cachedData) {
     const currentAndFuture = {
       current: exampleCurrentResponse,
-      future: exampleForecast
+      forecast: exampleForecast
     }
     renderSearchDataToPage(exampleCurrentResponse.name, currentAndFuture);
     return;
   }
-  // load latestSuccess !!!!
+  
   console.log("latestSuccess:" + latestSuccess);
   if (latestSuccess) {
     const pageData = await loadPageDataForCity(latestSuccess);
@@ -1738,6 +1739,44 @@ async function loadPageDataForCity(city) {
   return cityWeatherData;
 }
 
+function renderNow(current) {
+  const retTable = $("<table>");
+
+  const tempTd = renderTempToTd(current);
+  const iconTd = renderIconToTd(current);
+  const humidityTd = renderHumidityToTd(current);
+  const windSpeedTd = renderWindSpeedToTd(current);
+  const uvTd = renderUvToTd(current);
+
+  const tempRow = $("<tr>");
+  tempRow.append($("<td>").text("Temp"));
+  tempRow.append(tempTd);
+  retTable.append(tempRow);
+
+  const iconTr = $("<tr>");
+  iconTr.append($("<td>").text("Icon"));
+  iconTr.append(iconTd);
+  retTable.append(iconTr);
+
+  const humidityTr = $("<tr>");
+  humidityTr.append($("<td>").text("Humidity"));
+  humidityTr.append(humidityTd);
+  retTable.append(humidityTr);
+
+  const windSpeedTr = $("<tr>");
+  windSpeedTr.append($("<td>").text("Wind Speed"));
+  windSpeedTr.append(windSpeedTd);
+  retTable.append(windSpeedTr);
+
+  const uvTr = $("<tr>");
+  uvTr.append($("<td>").text("UV index"));
+  uvTr.append(uvTd);
+  retTable.append(uvTr);
+
+
+  return retTable;
+}
+
 function renderForecast(forecastData) {
   const retTable = $("<table>");
 
@@ -1778,11 +1817,17 @@ function renderForecast(forecastData) {
 }
 
 function createJQueryNowPageDataFromOpenweatherResponse(current) {
-  const retDiv = $("<div>").text("NOW PLACEHOLDER");
+  //const retDiv = $("<div>").text("NOW PLACEHOLDER");
+  const retDiv = $("<div>");
+  
+  const renderedNowTable = renderNow(current);
+
+  retDiv.append(renderedNowTable);
   return retDiv;
 }
 
 function createJQueryForecastPageDataFromOpenweatherResponse(forecast) {
+  
   const retDiv = $("<div>");
   const renderedForecastTable = renderForecast(forecast);
 
@@ -1822,13 +1867,12 @@ function renderWindSpeedToTd(weatherData) {
 }
 
 function renderUvToTd(weatherData) {
-  console.log(`@@@@@@@@@@@@ renderUvToTd weatherData = ${JSON.stringify(weatherData)}`)
+  
   if(!weatherData.uv)
   {
-    console.log("no uv index available.  Returning nothing");
-    return;
+    console.error("no uv index available.  Returning nothing");
+    throw new Error("no uv index is available in the WeatherData.");
   }
-  console.log("uv index is available!!!!  Returning " + weatherData.uv);
 
   const uvIndex = weatherData.uv;
   const uvScaledTo255 = Math.floor(uvIndex * 255.0/7.0); // 7 is considered very high
@@ -1871,7 +1915,6 @@ function createTempForecastTds(forecast) {
   const ret = new Array();
   
   for(let i=0; i<forecast.list.length; ++i) {
-    //console.log(`createTempForecastTds loop ${i}!!!!!!!!!!!!!!!!`);
     ret.push(renderTempToTd(forecast.list[i]));
   }
 
@@ -1913,11 +1956,7 @@ function createUvForecastTds(forecast) {
   
   for(let i=0; i<forecast.list.length; ++i) {
     let uvTd = renderUvToTd(forecast.list[i]);
-    if(uvTd) {
-      const text = uvTd.text();
-      console.log(`!!!!!!!?!?!?? text = ${text}`);
-    }
-    else {
+    if(!uvTd) {
       uvTd = $("<td>").text("NOTHING");
     }
     ret.push(uvTd);
@@ -1926,7 +1965,8 @@ function createUvForecastTds(forecast) {
   return ret;
 }
 
-function renderDayToTable(weatherData) {
+/*
+function DoIUseThisrenderDayToTable(weatherData) {
   // pull and convert the data I want to put in the table:
   //const dateString    = moment.unix(weatherData.dt).format("MM/DD/YYYY HH:MM:SS.ss");
   const dateString    = moment.unix(weatherData.dt).format("HH:MM:SS.ss");
@@ -1934,12 +1974,12 @@ function renderDayToTable(weatherData) {
 
   // now for the table:
   const retTable = $("<table>");
-  /*
+  
   TODO add city name to the top of all days
   const nameRow = $("<tr>")
   nameRow.append($("<td>").text("city name"));
   nameRow.append($("<td>").text(cityName));
-  */
+  
   const dateRow = $("<tr>");
   dateRow.append($("<td>").text("date"));
   dateRow.append(renderDateToTd(weatherData));
@@ -1984,14 +2024,15 @@ function renderDayToTable(weatherData) {
 
   return retTable;
 }
-
+*/
 function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
-
-  console.log("renderSearchDataToPage:", city);
-  console.log("rsd2p:", currentAndFutureCityWeatherData);
+  const dateString    = moment.unix(currentAndFutureCityWeatherData.current.dt).format("MM/DD/YYYY hh:MM A");
+  jqCurentTime.text(dateString);
+  jqCityNameDropZone.text(city);
+  
   try {
     const stringifiedJsonCityWeatherData = JSON.stringify(currentAndFutureCityWeatherData);
-    const t = createTableFromObject(currentAndFutureCityWeatherData);
+    
     const forecastPage = createJQueryForecastPageDataFromOpenweatherResponse(currentAndFutureCityWeatherData.forecast);
     const nowPage = createJQueryNowPageDataFromOpenweatherResponse(currentAndFutureCityWeatherData.current);
 
@@ -2000,13 +2041,9 @@ function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
 
     jqForecastDropZone.html("");
     jqForecastDropZone.append(forecastPage);
-
-
-    jqDevDropZone.html(""); // clear it
-    jqDevDropZone.append(t);
   }
   catch (err) {
-    // if my result came back successful, I will trust the apikey enough to
+    // if my result came back successfully, I will trust the apikey enough to
     // store it for use next time in localstorage.  Otherwise, I get here 
     // and will just log the failure and return
 
@@ -2027,10 +2064,9 @@ function renderSearchDataToPage(city, currentAndFutureCityWeatherData) {
       jqError.text(`The city '${city}' wasn't found.`);
     }
 
-
-    console.error("server cried:", err)
-    return;
-  } // end catch
+    // I don't understand what happened.  Rethrow.
+    throw err;
+  }
 
   return;
 }
