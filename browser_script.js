@@ -5,9 +5,9 @@ const devMode_cachedData = false;
 let openWeatherKey = "";
 let latestSuccess = "";
 
-const openWeatherUviBaseUrl = "http://api.openweathermap.org/data/2.5/uvi"
-const openWeatherBaseUrl = "http://api.openweathermap.org/data/2.5/weather/";
-const openWeatherForecastBaseUrl = "http://api.openweathermap.org/data/2.5/forecast/";
+const openWeatherUviBaseUrl = "https://api.openweathermap.org/data/2.5/uvi"
+const openWeatherBaseUrl = "https://api.openweathermap.org/data/2.5/weather/";
+const openWeatherForecastBaseUrl = "https://api.openweathermap.org/data/2.5/forecast/";
 
 
 const jqInputText = $("#apikey-input-text");
