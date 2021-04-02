@@ -4,5 +4,10 @@ body {
 
 tr {
   border: 1px solid green;
+  text-align: center;
+}
+
+td {
+  border: 2px solid green;
 }
 
